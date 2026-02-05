@@ -1,0 +1,72 @@
+/**
+ * Webhook для Telegram Bot API
+ * Принимает POST с update, возвращает 200 OK сразу,
+ * основную логику выполняет асинхронно
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { sendMessage } from "@/lib/telegram";
+import { runPipeline, formatEntitiesForUser } from "@/lib/pipeline";
+
+interface TelegramUpdate {
+  message?: {
+    chat: { id: number };
+    text?: string;
+    caption?: string;
+  };
+}
+
+function getTextFromUpdate(update: TelegramUpdate): string | null {
+  const msg = update?.message;
+  if (!msg) return null;
+  return msg.text ?? msg.caption ?? null;
+}
+
+function getChatId(update: TelegramUpdate): number | null {
+  return update?.message?.chat?.id ?? null;
+}
+
+export async function POST(request: NextRequest) {
+  let update: TelegramUpdate;
+  try {
+    update = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const chatId = getChatId(update);
+  const text = getTextFromUpdate(update);
+
+  if (chatId == null) {
+    return NextResponse.json({ error: "No chat id" }, { status: 400 });
+  }
+
+  // Возвращаем 200 OK сразу, не дожидаясь обработки
+  void processUpdate(chatId, text ?? "");
+
+  return new NextResponse(null, { status: 200 });
+}
+
+async function processUpdate(chatId: number, rawInput: string): Promise<void> {
+  try {
+    const result = runPipeline(rawInput);
+
+    if (!result.success) {
+      await sendMessage(chatId, result.message);
+      return;
+    }
+
+    const formatted = formatEntitiesForUser(result.entities);
+    await sendMessage(chatId, formatted);
+  } catch (err) {
+    console.error("[webhook] Error:", err);
+    try {
+      await sendMessage(
+        chatId,
+        "Произошла ошибка при обработке. Попробуйте позже."
+      );
+    } catch (sendErr) {
+      console.error("[webhook] Failed to send error message:", sendErr);
+    }
+  }
+}
