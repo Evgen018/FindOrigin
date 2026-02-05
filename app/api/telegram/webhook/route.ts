@@ -41,14 +41,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No chat id" }, { status: 400 });
   }
 
-  // Возвращаем 200 OK сразу, не дожидаясь обработки
-  void processUpdate(chatId, text ?? "");
+  // На Vercel функция завершается после return — нужно дождаться обработки
+  await processUpdate(chatId, text ?? "");
 
   return new NextResponse(null, { status: 200 });
 }
 
 async function processUpdate(chatId: number, rawInput: string): Promise<void> {
   try {
+    const trimmed = rawInput.trim();
+    if (trimmed === "/start" || trimmed === "/help") {
+      await sendMessage(
+        chatId,
+        "<b>EvFindOrigin</b>\n\n" +
+          "Отправьте текст или утверждение — я найду возможные источники и оценю их релевантность.\n\n" +
+          "Напишите любой запрос для поиска."
+      );
+      return;
+    }
+
     const result = await runPipeline(rawInput);
 
     if (!result.success) {
