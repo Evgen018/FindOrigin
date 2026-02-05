@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "FindOrigin",
+  title: "EvFindOrigin",
   description: "Telegram-бот для поиска источников информации",
 };
 
