@@ -1,9 +1,9 @@
 /**
- * Поиск через Google Custom Search JSON API
- * https://developers.google.com/custom-search/v1/using_rest
+ * Поиск через Serper API (Google Search)
+ * https://serper.dev — бесплатно 2500 запросов/месяц
  */
 
-const GOOGLE_CSE_URL = "https://www.googleapis.com/customsearch/v1";
+const SERPER_URL = "https://google.serper.dev/search";
 
 export interface SearchResult {
   link: string;
@@ -21,39 +21,45 @@ export async function searchWeb(
   query: string,
   options?: { num?: number }
 ): Promise<SearchResponse> {
-  const apiKey = process.env.GOOGLE_CSE_API_KEY;
-  const engineId = process.env.GOOGLE_CSE_ENGINE_ID;
+  const apiKey = process.env.SERPER_API_KEY;
 
-  if (!apiKey || !engineId) {
+  if (!apiKey) {
     return {
       success: false,
-      error: "GOOGLE_CSE_API_KEY или GOOGLE_CSE_ENGINE_ID не заданы",
+      error: "SERPER_API_KEY не задан. Получить: https://serper.dev",
     };
   }
 
-  const params = new URLSearchParams({
-    key: apiKey,
-    cx: engineId,
-    q: query,
-    num: String(Math.min(options?.num ?? 10, 10)),
-  });
-
   try {
-    const res = await fetch(`${GOOGLE_CSE_URL}?${params.toString()}`);
+    const res = await fetch(SERPER_URL, {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        q: query,
+        num: Math.min(options?.num ?? 10, 10),
+      }),
+    });
+
     const data = await res.json();
 
     if (!res.ok) {
       return {
         success: false,
-        error: data.error?.message ?? `HTTP ${res.status}`,
+        error: data.message ?? data.error ?? `HTTP ${res.status}`,
       };
     }
 
-    const items: SearchResult[] = (data.items ?? []).map((item: { link?: string; title?: string; snippet?: string }) => ({
-      link: item.link ?? "",
-      title: item.title ?? "",
-      snippet: item.snippet ?? "",
-    }));
+    const organic = data.organic ?? [];
+    const items: SearchResult[] = organic.map(
+      (item: { link?: string; title?: string; snippet?: string }) => ({
+        link: item.link ?? "",
+        title: item.title ?? "",
+        snippet: item.snippet ?? "",
+      })
+    );
 
     return { success: true, items };
   } catch (err) {
