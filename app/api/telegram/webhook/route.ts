@@ -55,7 +55,7 @@ async function processUpdate(chatId: number, rawInput: string): Promise<void> {
         chatId,
         "<b>EvFindOrigin</b>\n\n" +
           "Отправьте текст или утверждение — я найду возможные источники и оценю их релевантность.\n\n" +
-          "Веб-приложение: кнопка <b>Open</b> рядом с полем ввода."
+          "Веб-приложение: кнопка <b>Open mini App</b> рядом с полем ввода."
       );
       return;
     }
